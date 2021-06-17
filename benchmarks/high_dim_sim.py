@@ -15,8 +15,8 @@ p_star = 3
         dtype=int
         )'''
 sample_size = [1000,5000,10000]
-n_test = 1000
-reps = 100
+n_test = 5000
+reps = 10
 covarice_types = {'diag', 'full', 'spherical'}
 criterion = 'bic'
 n_estimators = 500
@@ -143,13 +143,13 @@ for sample in sample_size:
 sns.set_context('talk')
 fig, ax = plt.subplots(1,1, figsize=(8,8))
 
-ax.plot(sample_size, err_rf_med, c="k", label='RF')
+ax.plot(sample_size, err_rf_med, c="k", label='RF', marker='.',markersize=14)
 ax.fill_between(sample_size, err_rf_25_quantile, err_rf_75_quantile, facecolor='k', alpha=.3)
 
-ax.plot(sample_size, err_kdf_med, c="r", label='KDF (BIC)')
+ax.plot(sample_size, err_kdf_med, c="r", label='KDF (BIC)', marker='.',markersize=14)
 ax.fill_between(sample_size, err_kdf_25_quantile, err_kdf_75_quantile, facecolor='r', alpha=.3)
 
-ax.plot(sample_size, err_kdf_med_, c="b", label='KDF (BIC and feteaure selected)')
+ax.plot(sample_size, err_kdf_med_, c="b", label='KDF (BIC and feteaure selected)', marker='.',markersize=14)
 ax.fill_between(sample_size, err_kdf_25_quantile_, err_kdf_75_quantile_, facecolor='b', alpha=.3)
 
 right_side = ax.spines["right"]
@@ -158,8 +158,13 @@ top_side = ax.spines["top"]
 top_side.set_visible(False)
 
 ax.set_xscale('log')
-ax.set_xlabel('Sample size')
+ax.set_xlabel('')
 ax.set_ylabel('error')
+ax.set_xticks([])
+ax.text(1000, -0.040, "1000", fontsize=18)
+ax.text(5000, -0.040, "5000", fontsize=18)
+ax.text(10000, -0.040, "10000", fontsize=18)
+ax.text(2000, -0.080, "Sample Size", fontsize=20)
 ax.legend(frameon=False)
 
 plt.savefig('plots/high_dim.pdf')
