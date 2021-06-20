@@ -66,7 +66,7 @@ class kdf(KernelDensityGraph):
                 [tree.apply(X_) for tree in self.rf_model.estimators_]
                 ).T
             total_polytopes_this_label = len(X_)
-
+            print(total_polytopes_this_label)
             for polytope in range(total_polytopes_this_label):
                 matched_samples = np.sum(
                     predicted_leaf_ids_across_trees == predicted_leaf_ids_across_trees[polytope],
@@ -82,30 +82,20 @@ class kdf(KernelDensityGraph):
                 leaf_nodes_reached = predicted_leaf_ids_across_trees[polytope]
                 feature_dim_used = []
                 for ii, node in enumerate(leaf_nodes_reached):
-                    feature_dim_used.extend(
+                    feature_dim_used.append(
                         list(self.tree_to_leaf_to_feature_map[ii][node])
                     )
-                feature_dim_used = np.unique(feature_dim_used)
-                ids_not_used = np.delete(feature_id,feature_dim_used)
-
+                
                 if self.criterion == None:
-                    gm = GaussianMixture(n_components=1, covariance_type=self.covariance_types, reg_covar=1e-4).fit(X_[idx])
-                    self.polytope_means[label].append(
-                            gm.means_[0]
-                    )
-                    tmp_cov = gm.covariances_[0]
+                        gm = GaussianMixture(n_components=1, covariance_type=self.covariance_types, reg_covar=1e-4).fit(X_[idx])
+                        tmp_means = gm.means_[0]
+                        tmp_cov = gm.covariances_[0]
 
-                    if self.covariance_types == 'spherical':
-                        tmp_cov = np.eye(feature_dim)*tmp_cov
-                    elif self.covariance_types == 'diag':
-                        tmp_cov = np.eye(len(tmp_cov)) * tmp_cov
+                        if self.covariance_types == 'spherical':
+                            tmp_cov = np.eye(feature_dim)*tmp_cov
+                        elif self.covariance_types == 'diag':
+                            tmp_cov = np.eye(len(tmp_cov)) * tmp_cov
 
-                    tmp_cov[ids_not_used,ids_not_used] = np.inf
-                    tmp_cov[ids_not_used,:] = np.inf
-                    tmp_cov[:,ids_not_used] = np.inf
-                    self.polytope_cov[label].append(
-                            tmp_cov
-                    )
                 else:
                     min_val = np.inf
                     tmp_means = np.mean(
@@ -117,7 +107,7 @@ class kdf(KernelDensityGraph):
                         axis=0
                     )
                     tmp_cov = np.eye(len(tmp_cov)) * tmp_cov
-                    
+                        
                     for cov_type in self.covariance_types:
                         try:
                             gm = GaussianMixture(n_components=1, covariance_type=cov_type, reg_covar=1e-3).fit(X_[idx])
@@ -132,7 +122,7 @@ class kdf(KernelDensityGraph):
                             if min_val > constraint:
                                 min_val = constraint
                                 tmp_cov = gm.covariances_[0]
-                                
+                                    
                                 if cov_type == 'spherical':
                                     tmp_cov = np.eye(feature_dim)*tmp_cov
                                 elif cov_type == 'diag':
@@ -140,15 +130,21 @@ class kdf(KernelDensityGraph):
 
                                 tmp_means = gm.means_[0]
 
-                    tmp_cov[ids_not_used,ids_not_used] = np.inf
-                    tmp_cov[ids_not_used,:] = np.inf
-                    tmp_cov[:,ids_not_used] = np.inf
+                for features in feature_dim_used:
+                    features = np.unique(features)
+                    ids_not_used = np.delete(feature_id,features)
 
+                    tmp_cov_ = tmp_cov.copy()
+                    '''print(tmp_cov_,'tmp_cov_')
+                    tmp_cov_[ids_not_used,ids_not_used] = 0
+                    tmp_cov_[ids_not_used,:] = 0
+                    tmp_cov_[:,ids_not_used] = 0
+                    print(tmp_cov_,'tmp_cov_2')'''
                     self.polytope_means[label].append(
                         tmp_means
                     )
                     self.polytope_cov[label].append(
-                        tmp_cov
+                        tmp_cov_
                     )
         
             
