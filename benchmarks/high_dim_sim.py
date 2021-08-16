@@ -163,14 +163,14 @@ fig, ax = plt.subplots(1,1, figsize=(8,8))
 ax.plot(sample_size, err_rf_med, c="k", label='RF')
 ax.fill_between(sample_size, err_rf_25_quantile, err_rf_75_quantile, facecolor='k', alpha=.3)
 
-#ax.plot(sample_size, err_rf_med_, c="g", label='RF (feature selected)')
-#ax.fill_between(sample_size, err_rf_25_quantile_, err_rf_75_quantile_, facecolor='g', alpha=.3)
+ax.plot(sample_size, err_rf_med_, c="g", label='RF (feature selected)')
+ax.fill_between(sample_size, err_rf_25_quantile_, err_rf_75_quantile_, facecolor='g', alpha=.3)
 
 ax.plot(sample_size, err_kdf_med, c="r", label='KDF')
 ax.fill_between(sample_size, err_kdf_25_quantile, err_kdf_75_quantile, facecolor='r', alpha=.3)
 
-#ax.plot(sample_size, err_kdf_med_, c="b", label='KDF (feteaure selected)')
-#ax.fill_between(sample_size, err_kdf_25_quantile_, err_kdf_75_quantile_, facecolor='b', alpha=.3)
+ax.plot(sample_size, err_kdf_med_, c="b", label='KDF (feteaure selected)')
+ax.fill_between(sample_size, err_kdf_25_quantile_, err_kdf_75_quantile_, facecolor='b', alpha=.3)
 
 right_side = ax.spines["right"]
 right_side.set_visible(False)

@@ -1,4 +1,4 @@
-`kdg` (Kernel Density Graph) is a package for exploring and using kernel density algorithms developed by the [neurodata group](https://neurodata.io).
+`kdg` (Kernel Density Graph) is a package for exploring and using kernel density algorithms developed by the [neurodata group](https://neurodata.io). In this branch, we implemented bandwidth correction for the Gaussians on noisy data. We set the a scaling factor over the variance along the noisy dimension to handle the high dimensional noise problem.
 
 Install
 =======
