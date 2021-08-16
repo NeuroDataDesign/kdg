@@ -30,12 +30,12 @@ sample_list = []
 for sample in sample_size:
     print('Doing sample %d'%sample)
     for ii in range(reps):
-        X, y = trunk_sim(
+        X, y = gaussian_sparse_parity(
             sample,
             p_star=p_star,
             p=p
         )
-        X_test, y_test = trunk_sim(
+        X_test, y_test = gaussian_sparse_parity(
             n_test,
             p_star=p_star,
             p=p
