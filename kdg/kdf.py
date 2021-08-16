@@ -8,7 +8,7 @@ import warnings
 
 class kdf(KernelDensityGraph):
 
-    def __init__(self, covariance_types = 'full', criterion=None, bw_scale = 100, kwargs={}):
+    def __init__(self, covariance_types = 'full', criterion=None, bw_scale = 10, kwargs={}):
         super().__init__()
         
         if isinstance(covariance_types, str)==False and criterion == None:
@@ -26,6 +26,7 @@ class kdf(KernelDensityGraph):
         self.criterion = criterion
         self.bw_scale  = bw_scale
         self.is_fitted = False
+        self.accuracy = 0
 
     def fit(self, X, y):
         r"""
@@ -42,11 +43,12 @@ class kdf(KernelDensityGraph):
                 "Model is already fitted!"
             )
             return
-            
+
         X, y = check_X_y(X, y)
         self.labels = np.unique(y)
         self.rf_model = rf(**self.kwargs).fit(X, y)
         feature_dim = X.shape[1]
+        self.scales = np.ones((feature_dim, feature_dim), dtype=float)
         
         for label in self.labels:
             self.polytope_means[label] = []
@@ -129,11 +131,26 @@ class kdf(KernelDensityGraph):
                         tmp_cov
                     )
         self.is_fitted = True
-        
+        self.accuracy = np.mean(
+            self.predict(X) == y
+        )
+
+        #bandwidth correction
+        for dim in range(feature_dim):
+            self.scales[:,dim] *= self.bw_scale
+            self.scales[dim,:] *= self.bw_scale
+            
+            acc = np.mean(
+                self.predict(X) == y
+            )
+            
+            if acc + 0.01 < self.accuracy:
+                self.scales[:,dim] /= self.bw_scale
+                self.scales[dim,:] /= self.bw_scale
             
     def _compute_pdf(self, X, label, polytope_idx):
         polytope_mean = self.polytope_means[label][polytope_idx]
-        polytope_cov = self.polytope_cov[label][polytope_idx]
+        polytope_cov = self.scales * self.polytope_cov[label][polytope_idx]
 
         var = multivariate_normal(
             mean=polytope_mean, 
