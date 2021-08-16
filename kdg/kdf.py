@@ -8,7 +8,7 @@ import warnings
 
 class kdf(KernelDensityGraph):
 
-    def __init__(self, covariance_types = 'full', criterion=None, kwargs={}):
+    def __init__(self, covariance_types = 'full', criterion=None, bw_scale = 100, kwargs={}):
         super().__init__()
         
         if isinstance(covariance_types, str)==False and criterion == None:
@@ -24,6 +24,8 @@ class kdf(KernelDensityGraph):
         self.kwargs = kwargs
         self.covariance_types = covariance_types
         self.criterion = criterion
+        self.bw_scale  = bw_scale
+        self.is_fitted = False
 
     def fit(self, X, y):
         r"""
@@ -35,6 +37,12 @@ class kdf(KernelDensityGraph):
         y : ndarray
             Output (i.e. response) data matrix.
         """
+        if self.is_fitted:
+            raise ValueError(
+                "Model is already fitted!"
+            )
+            return
+            
         X, y = check_X_y(X, y)
         self.labels = np.unique(y)
         self.rf_model = rf(**self.kwargs).fit(X, y)
@@ -120,6 +128,7 @@ class kdf(KernelDensityGraph):
                     self.polytope_cov[label].append(
                         tmp_cov
                     )
+        self.is_fitted = True
         
             
     def _compute_pdf(self, X, label, polytope_idx):
