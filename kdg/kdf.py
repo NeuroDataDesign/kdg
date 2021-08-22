@@ -8,7 +8,7 @@ import warnings
 
 class kdf(KernelDensityGraph):
 
-    def __init__(self, covariance_types = 'full', criterion=None, bw_scale = 10, kwargs={}):
+    def __init__(self, covariance_types = 'full', criterion=None, bw_scale = 100, kwargs={}):
         super().__init__()
         
         if isinstance(covariance_types, str)==False and criterion == None:
@@ -143,6 +143,7 @@ class kdf(KernelDensityGraph):
             acc = np.mean(
                 self.predict(X) == y
             )
+            #print(acc, self.accuracy, dim)
             
             if acc + 0.01 < self.accuracy:
                 self.scales[:,dim] /= self.bw_scale
