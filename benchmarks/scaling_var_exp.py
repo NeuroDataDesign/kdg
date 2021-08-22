@@ -11,8 +11,8 @@ p = 20
 p_star = 3
 sample_size = 5000
 n_test = 1000
-scales = [0.001, 0.1, 1, 10, 100, 1000, 10000, 10000]
-reps = 10
+scales = [0.001, 0.1, 1, 10, 100, 1000, 10000, 1e5, 1e6]
+reps = 1000
 
 n_estimators = 500
 df = pd.DataFrame()
@@ -49,6 +49,7 @@ for scale in scales:
     error_kdf.append(
         1 - np.mean(acc)
     )
+
 #%%
 sns.set_context('talk')
 fig, ax = plt.subplots(1,1, figsize=(8,8))

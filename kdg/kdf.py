@@ -140,14 +140,14 @@ class kdf(KernelDensityGraph):
             self.scales[:,dim] *= self.bw_scale
             self.scales[dim,:] *= self.bw_scale
             
-            acc = np.mean(
+            '''acc = np.mean(
                 self.predict(X) == y
             )
             #print(acc, self.accuracy, dim)
             
             if acc + 0.01 < self.accuracy:
                 self.scales[:,dim] /= self.bw_scale
-                self.scales[dim,:] /= self.bw_scale
+                self.scales[dim,:] /= self.bw_scale'''
             
     def _compute_pdf(self, X, label, polytope_idx):
         polytope_mean = self.polytope_means[label][polytope_idx]
