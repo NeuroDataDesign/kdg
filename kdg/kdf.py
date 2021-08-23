@@ -136,7 +136,7 @@ class kdf(KernelDensityGraph):
         )
 
         #bandwidth correction
-        for dim in range(feature_dim):
+        for dim in range(3,20): #feature_dim):
             self.scales[:,dim] *= self.bw_scale
             self.scales[dim,:] *= self.bw_scale
             
