@@ -3,8 +3,12 @@ import numpy as np
 from kdg import kdf
 from kdg import kdn
 from kdg.utils import gaussian_sparse_parity, trunk_sim
-import pandas as pd
+from kdg.utils import generate_gaussian_parity, pdf, hellinger
+import pandas as pd #TODO: Add pandas to setup.py file
 from sklearn.ensemble import RandomForestClassifier as rf
+import tensorflow as tf
+import keras
+from keras import layers
 #%%
 p = 20
 p_star = 3
@@ -19,7 +23,8 @@ sample_size = [1000,5000,10000]
 n_test = 1000
 reps = 10
 
-cov_types = {'diag', 'full', 'spherical'}
+cov_type = 'full' #{'diag', 'full', 'spherical'}
+criterion = None
 
 n_estimators = 500
 df = pd.DataFrame()
@@ -33,6 +38,8 @@ sample_list = []
 for sample in sample_size:
     print('Doing sample %d'%sample)
     for ii in range(reps):
+        '''
+        Earlier implementation of gaussian parity for KDF 
         X, y = gaussian_sparse_parity(
             sample,
             p_star=p_star,
@@ -42,8 +49,10 @@ for sample in sample_size:
             n_test,
             p_star=p_star,
             p=p
-        )
+        )''' 
 
+        X, y = generate_gaussian_parity(sample, cluster_std=0.5)
+        X_test, y_test = generate_gaussian_parity(1000, cluster_std=0.5)
         #train kdf
         model_kdf = kdf(
             kwargs={'n_estimators':n_estimators}
@@ -55,9 +64,11 @@ for sample in sample_size:
                 model_kdf.predict(X_test) == y_test
             )
         )
+        
+
 
         #train kdn
-        network = keras.Sequential()
+        network = tf.keras.Sequential()
     #network.add(layers.Dense(2, activation="relu", input_shape=(2)))
         network.add(layers.Dense(3, activation='relu', input_shape=(2,)))
         network.add(layers.Dense(3, activation='relu'))
@@ -79,13 +90,14 @@ for sample in sample_size:
         #)
         reps_list.append(ii)
         sample_list.append(sample)
-        print(accuracy_kdf)
+        print("Accuracy_KDF: ", accuracy_kdf)
+        print("Accuracy_KDN: ", accuracy_kdn)
         #train feature selected kdf
         
 
 df['accuracy kdf'] = accuracy_kdf
 #df['feature selected kdf'] = accuracy_kdf_
-df['accuracy rf'] = accuracy_kdn
+df['accuracy kdn'] = accuracy_kdn
 #df['feature selected rf'] = accuracy_rf_
 df['reps'] = reps_list
 df['sample'] = sample_list
