@@ -19,7 +19,7 @@ p_star = 3
         endpoint=True,
         dtype=int
         )'''
-sample_size = [1000,5000,10000]
+sample_size = [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]#[1000,5000,10000]
 n_test = 1000
 reps = 10
 
@@ -34,8 +34,10 @@ accuracy_kdf_ = []
 accuracy_kdn = []
 accuracy_kdn_ = []
 sample_list = []
+hellinger_dist_kdf = []
+hellinger_dist_kdn = []
 # %%
-for sample in sample_size:
+for sample in sample_size: 
     print('Doing sample %d'%sample)
     for ii in range(reps):
         '''
@@ -53,6 +55,24 @@ for sample in sample_size:
 
         X, y = generate_gaussian_parity(sample, cluster_std=0.5)
         X_test, y_test = generate_gaussian_parity(1000, cluster_std=0.5)
+
+        #Creating setup for hellinger distance tests 
+        p = np.arange(-1,1,step=0.006)
+        q = np.arange(-1,1,step=0.006)
+        xx, yy = np.meshgrid(p,q)
+        grid_samples = np.concatenate(
+                (
+                    xx.reshape(-1,1),
+                    yy.reshape(-1,1)
+                ),
+                axis=1
+        ) 
+
+        true_pdf_class1 = np.array([pdf(x, cov_scale=0.5) for x in grid_samples]).reshape(-1,1)
+        true_pdf = np.concatenate([true_pdf_class1, 1-true_pdf_class1], axis = 1)
+
+ 
+
         #train kdf
         model_kdf = kdf(
             kwargs={'n_estimators':n_estimators}
@@ -65,6 +85,10 @@ for sample in sample_size:
             )
         )
         
+        #Hellinger comparison
+        proba_kdf = model_kdf.predict_proba(grid_samples)
+        err_kdf = 1 - np.mean(model_kdf.predict(X_test)==y_test)
+        hellinger_dist_kdf.append(hellinger(proba_kdf, true_pdf))
 
 
         #train kdn
@@ -82,6 +106,11 @@ for sample in sample_size:
                 model_kdn.predict(X_test) == y_test
             )
         )
+
+        #Hellinger comparison
+        proba_kdn = model_kdn.predict_proba(grid_samples)
+        err_kdn = 1 - np.mean(model_kdn.predict(X_test)==y_test)
+        hellinger_dist_kdn.append(hellinger(proba_kdn, true_pdf))
 
         #accuracy_rf.append(
         #    np.mean(
@@ -101,6 +130,8 @@ df['accuracy kdn'] = accuracy_kdn
 #df['feature selected rf'] = accuracy_rf_
 df['reps'] = reps_list
 df['sample'] = sample_list
+df['hellinger_dist_kdf'] = hellinger_dist_kdf
+df['hellinger_dist_kdn'] = hellinger_dist_kdn
 
 df.to_csv('compare_kdf_kdn.csv')
 # %% plot the result
@@ -113,15 +144,15 @@ filename1 = 'compare_kdf_kdn.csv'
 
 df = pd.read_csv(filename1)
 
-sample_size = [1000,5000,10000]
+#sample_size = [1000,5000,10000]
 
-err_rf_med = []
-err_rf_25_quantile = []
-err_rf_75_quantile = []
+err_kdn_med = []
+err_kdn_25_quantile = []
+err_kdn_75_quantile = []
 
-err_rf_med_ = []
-err_rf_25_quantile_ = []
-err_rf_75_quantile_ = []
+err_kdn_med_ = []
+err_kdn_25_quantile_ = []
+err_kdn_75_quantile_ = []
 
 err_kdf_med = []
 err_kdf_25_quantile = []
@@ -135,26 +166,17 @@ err_kdf_75_quantile_ = []
 
 
 for sample in sample_size:
-    err_rf = 1 - df['accuracy kdn'][df['sample']==sample]
-    #err_rf_ = 1 - df['feature selected rf'][df['sample']==sample]
+    err_kdn = 1 - df['accuracy kdn'][df['sample']==sample]
     err_kdf = 1 - df['accuracy kdf'][df['sample']==sample]
-    #err_kdf_ = 1 - df['feature selected kdf'][df['sample']==sample]
 
-    err_rf_med.append(np.median(err_rf))
-    err_rf_25_quantile.append(
-            np.quantile(err_rf,[.25])[0]
+    err_kdn_med.append(np.median(err_kdn))
+    err_kdn_25_quantile.append(
+            np.quantile(err_kdn,[.25])[0]
         )
-    err_rf_75_quantile.append(
-        np.quantile(err_rf,[.75])[0]
+    err_kdn_75_quantile.append(
+        np.quantile(err_kdn,[.75])[0]
     )
 
-    #err_rf_med_.append(np.median(err_rf_))
-    #err_rf_25_quantile_.append(
-    #        np.quantile(err_rf_,[.25])[0]
-    #    )
-    #err_rf_75_quantile_.append(
-    #    np.quantile(err_rf_,[.75])[0]
-    #)
 
     err_kdf_med.append(np.median(err_kdf))
     err_kdf_25_quantile.append(
@@ -164,19 +186,12 @@ for sample in sample_size:
         np.quantile(err_kdf,[.75])[0]
     )
 
-    #err_kdf_med_.append(np.median(err_kdf_))
-    #err_kdf_25_quantile_.append(
-    #        np.quantile(err_kdf_,[.25])[0]
-    #    )
-    #err_kdf_75_quantile_.append(
-    #    np.quantile(err_kdf_,[.75])[0]
-    #)
 
 sns.set_context('talk')
 fig, ax = plt.subplots(1,1, figsize=(8,8))
 
-ax.plot(sample_size, err_rf_med, c="k", label='KDN')
-ax.fill_between(sample_size, err_rf_25_quantile, err_rf_75_quantile, facecolor='k', alpha=.3)
+ax.plot(sample_size, err_kdn_med, c="k", label='KDN')
+ax.fill_between(sample_size, err_kdn_25_quantile, err_kdn_75_quantile, facecolor='k', alpha=.3)
 
 #ax.plot(sample_size, err_rf_med_, c="g", label='RF (feature selected)')
 #ax.fill_between(sample_size, err_rf_25_quantile_, err_rf_75_quantile_, facecolor='g', alpha=.3)
@@ -197,6 +212,6 @@ ax.set_xlabel('Sample size')
 ax.set_ylabel('error')
 ax.legend(frameon=False)
 
-plt.savefig('plots/compare_kdf_kdn.pdf')
+plt.savefig('plots/compare_kdf_kdn_v2.pdf')
 
 # %%
