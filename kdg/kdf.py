@@ -37,14 +37,18 @@ class kdf(KernelDensityGraph):
 
         X, y = check_X_y(X, y)
         self.labels = np.unique(y)
+        #fit a random forest to the entire dataset
         self.rf_model = rf(**self.kwargs).fit(X, y)
         feature_dim = X.shape[1]
 
         for label in self.labels:
             self.polytope_means[label] = []
             self.polytope_cov[label] = []
-
+            
+            # Get all training items that match our given label
             X_ = X[np.where(y==label)[0]]
+            #get the leaf ids for each tree in forest
+            #row = sample, column = tree
             predicted_leaf_ids_across_trees = np.array(
                 [tree.apply(X_) for tree in self.rf_model.estimators_]
                 ).T
@@ -52,22 +56,28 @@ class kdf(KernelDensityGraph):
                 predicted_leaf_ids_across_trees, return_inverse=True, axis=0
             )
             total_polytopes_this_label = np.max(polytope_idx)+1
-
+            
+            #Polytope: list of leaf ids for each tree
             for polytope in range(total_polytopes_this_label):
+                #for each sample, count number of leaf ids matching polytope
                 matched_samples = np.sum(
                     predicted_leaf_ids_across_trees == predicted_leaf_ids_across_trees[polytope],
                     axis=1
                 )
+                #get all samples with at least one leaf matching this polytope
                 idx = np.where(
                     matched_samples>0
                 )[0]
 
                 if len(idx) == 1:
                     continue
-                
+                #scale # of matches to percents 
                 scales = matched_samples[idx]/np.max(matched_samples[idx])
+                #select samples in this polytope
                 X_tmp = X_[idx].copy()
+                #find center of polytope by averaging each feature by percent-match
                 location_ = np.average(X_tmp, axis=0, weights=scales)
+                #center X_tmp and scale
                 X_tmp -= location_
                 
                 sqrt_scales = np.sqrt(scales).reshape(-1,1) @ np.ones(feature_dim).reshape(1,-1)
@@ -75,7 +85,7 @@ class kdf(KernelDensityGraph):
 
                 covariance_model = LedoitWolf(assume_centered=True)
                 covariance_model.fit(X_tmp)
-
+                
                 self.polytope_means[label].append(
                     location_
                 )
@@ -87,6 +97,16 @@ class kdf(KernelDensityGraph):
         
             
     def _compute_pdf(self, X, label, polytope_idx):
+        r"""
+        Calculate probability density function using the kernel density forest.
+        Parameters
+        ----------
+        X : ndarray
+            Input data matrix.
+        label : string
+                A single group we want the PDF for
+        polytope_idx : index of a polytope, within label
+        """
         polytope_mean = self.polytope_means[label][polytope_idx]
         polytope_cov = self.polytope_cov[label][polytope_idx]
 
@@ -95,7 +115,7 @@ class kdf(KernelDensityGraph):
             cov=polytope_cov, 
             allow_singular=True
             )
-
+    
         likelihood = var.pdf(X)
         return likelihood
 
@@ -113,7 +133,7 @@ class kdf(KernelDensityGraph):
             (np.size(X,0), len(self.labels)),
             dtype=float
         )
-        
+        #calculate likelihood of each label
         for ii,label in enumerate(self.labels):
             for polytope_idx,_ in enumerate(self.polytope_means[label]):
                 likelihoods[:,ii] += np.nan_to_num(self._compute_pdf(X, label, polytope_idx))
