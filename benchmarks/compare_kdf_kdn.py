@@ -9,17 +9,39 @@ from sklearn.ensemble import RandomForestClassifier as rf
 import tensorflow as tf
 import keras
 from keras import layers
+import seaborn as sns
+import matplotlib.pyplot as plt
 #%%
+
+
+#TODO: Move get_colors to 'functions'
+def get_colors(colors, inds):
+    c = [colors[i] for i in inds]
+    return c
+
+#TODO: Move plotting to 'functions'
+def plot_xor_nxor(data, labels, title):
+    colors = sns.color_palette("Dark2", n_colors=2)
+    fig, ax = plt.subplots(1, 1, figsize=(8, 8))
+    ax.scatter(data[:, 0], data[:, 1], c=get_colors(colors, labels), s=50)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_title(title, fontsize=30)
+    plt.tight_layout()
+    ax.axis("off")
+    #plt.show()
+
+
 p = 20
 p_star = 3
-'''sample_size = np.logspace(
+sample_size = np.logspace(
         np.log10(10),
         np.log10(5000),
         num=10,
         endpoint=True,
         dtype=int
-        )'''
-sample_size = [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]#[1000,5000,10000]
+        )
+#sample_size = [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]#[1000,5000,10000]
 n_test = 1000
 reps = 10
 
@@ -55,6 +77,11 @@ for sample in sample_size:
 
         X, y = generate_gaussian_parity(sample, cluster_std=0.5)
         X_test, y_test = generate_gaussian_parity(1000, cluster_std=0.5)
+
+        plot_xor_nxor(X, y, 'Training: Gaussian XOR')
+        plt.savefig('./data_gen/Training_XOR_{}_{}.png'.format(sample, ii))
+        plot_xor_nxor(X_test, y_test, 'Gaussian XOR')
+        plt.savefig('./data_gen/Testing_XOR_{}_{}.png'.format(sample, ii))
 
         #Creating setup for hellinger distance tests 
         p = np.arange(-1,1,step=0.006)

@@ -6,6 +6,7 @@ from kdg.utils import generate_gaussian_parity, pdf, hellinger
 import numpy as np
 import pandas as pd
 from joblib import Parallel, delayed
+
 # %%
 reps = 100
 sample_size = np.logspace(
@@ -56,6 +57,7 @@ def experiment_nn(sample):
 
     X, y = generate_gaussian_parity(sample, cluster_std=0.5)
     X_test, y_test = generate_gaussian_parity(1000, cluster_std=0.5)
+
     p = np.arange(-1,1,step=0.006)
     q = np.arange(-1,1,step=0.006)
     xx, yy = np.meshgrid(p,q)
