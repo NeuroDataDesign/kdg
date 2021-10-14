@@ -169,7 +169,7 @@ class kdn(KernelDensityGraph):
 
     def _compute_pdf(self, X, label, polytope_idx):
         r"""
-        Calculate probability density function using the kernel density network for a given group.
+        Calculate probability density function based on samples in polytope
         Parameters
         ----------
         X : ndarray
@@ -178,9 +178,11 @@ class kdn(KernelDensityGraph):
                 A single group we want the PDF for
         polytope_idx : index of a polytope, within label
         """
+        
+        # means and covariance determined by averaging all samples within polytope
         polytope_mean = self.polytope_means[label][polytope_idx]
         polytope_cov = self.polytope_cov[label][polytope_idx]
-
+        
         var = multivariate_normal(
             mean=polytope_mean, 
             cov=polytope_cov, 
@@ -192,14 +194,15 @@ class kdn(KernelDensityGraph):
 
     def predict_proba(self, X):
         r"""
-        Calculate posteriors using the kernel density network.
+        Calculate posteriors using polytopes previously defined by kernel density network.
         Parameters
         ----------
         X : ndarray
             Input data matrix.
         """
         X = check_array(X)
-
+        
+        #create array of samples x labels
         likelihoods = np.zeros(
             (np.size(X,0), len(self.labels)),
             dtype=float
@@ -207,14 +210,16 @@ class kdn(KernelDensityGraph):
         
         for ii,label in enumerate(self.labels):
             for polytope_idx,_ in enumerate(self.polytope_means[label]):
+                # likelihood for each label is the sum of the likelihoods for all polytopes in that label
                 likelihoods[:,ii] += np.nan_to_num(self._compute_pdf(X, label, polytope_idx))
 
+        # scale likelihoods to be probability distributions
         proba = (likelihoods.T/(np.sum(likelihoods,axis=1)+1e-100)).T
         return proba
 
     def predict(self, X):
         r"""
-        Perform inference using the kernel density forest.
+        Perform inference using the kernel density network.
         Parameters
         ----------
         X : ndarray
