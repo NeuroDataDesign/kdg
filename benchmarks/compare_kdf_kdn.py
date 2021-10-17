@@ -36,14 +36,14 @@ p = 20
 p_star = 3
 sample_size = np.logspace(
         np.log10(10),
-        np.log10(5000),
-        num=10,
+        np.log10(20000),
+        num=12,
         endpoint=True,
         dtype=int
         )
 #sample_size = [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]#[1000,5000,10000]
 n_test = 1000
-reps = 10
+reps = 20
 
 cov_type = 'full' #{'diag', 'full', 'spherical'}
 criterion = None
@@ -82,6 +82,7 @@ for sample in sample_size:
         plt.savefig('./data_gen/Training_XOR_{}_{}.png'.format(sample, ii))
         plot_xor_nxor(X_test, y_test, 'Gaussian XOR')
         plt.savefig('./data_gen/Testing_XOR_{}_{}.png'.format(sample, ii))
+        plt.close('all')
 
         #Creating setup for hellinger distance tests 
         p = np.arange(-1,1,step=0.006)
@@ -239,6 +240,6 @@ ax.set_xlabel('Sample size')
 ax.set_ylabel('error')
 ax.legend(frameon=False)
 
-plt.savefig('plots/compare_kdf_kdn_v2.pdf')
+plt.savefig('plots/compare_kdf_kdn_v6.pdf')
 
 # %%
