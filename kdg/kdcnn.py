@@ -72,16 +72,16 @@ class kdcnn(KernelDensityGraph):
             else:
                 binary_preactivation = (preactivation > 0).astype('int')
             
-            # determine the polytope memberships only based on the penultimate layer
-            if layer_id == total_layers - 2:
-              polytope_memberships.append(binary_preactivation)
+            # # determine the polytope memberships only based on the penultimate layer
+            # if layer_id == total_layers - 2:
+            #   polytope_memberships.append(binary_preactivation)
 
-            # # determine the polytope memberships only based on all the FC layers
-            # polytope_memberships.append(binary_preactivation)
+            # determine the polytope memberships only based on all the FC layers
+            polytope_memberships.append(binary_preactivation)
             
             # remove all nodes that were not activated
             last_activations = preactivation * binary_preactivation
-        
+          
         #Concatenate all activations for given observation
         polytope_obs = np.concatenate(polytope_memberships, axis = 1)
         polytope_memberships = [np.tensordot(polytope_obs, 2 ** np.arange(0, np.shape(polytope_obs)[1]), axes = 1)]
@@ -100,14 +100,16 @@ class kdcnn(KernelDensityGraph):
         """
         
         self.labels = np.unique(y)
-
-        # self.network.compile(**self.compile_kwargs)
-        # self.network.fit(X, keras.utils.to_categorical(y), **self.fit_kwargs)
         feature_dim = X.shape[1]
 
         # get the encoder outputs
         self.encoder = Model(self.network.input, self.network.layers[-(self.num_fc_layers + 1)].output)
         X = self.encoder.predict(X)
+
+        # get the number of FC neurons
+        num_fc_neurons = 0
+        for i in range(-1, -(self.num_fc_layers + 1), -1):
+            num_fc_neurons += self.network.layers[i].output_shape[1]
         
         for label in self.labels:
             print("label : ", label)
@@ -118,84 +120,59 @@ class kdcnn(KernelDensityGraph):
             X_ = X[np.where(y==label)[0]]
             
             # Calculate polytope memberships for each observation in X_
-            polytopes = self._get_polytopes(X_)[0]
-            unique_polytopes = np.unique(polytopes) # get the unique polytopes
-            print("Number of Polytopes : ", len(polytopes))
-            print("Number of Unique Polytopes : ", len(np.unique(polytopes)))
-            
-            num_polytopes = []
+            polytope_memberships = self._get_polytopes(X_)[0]
+            unique_polytopes = np.unique(polytope_memberships) # get the unique polytopes
+            print("Number of Polytopes : ", len(polytope_memberships))
+            print("Number of Unique Polytopes : ", len(unique_polytopes))
+
+            polytope_member_count = [] # store the polytope member counts
             for polytope in unique_polytopes:
-                # find all other data with same polytopes
-                idx = np.where(polytopes==polytope)[0]
-                num_polytopes.append(len(idx))
+                idx = np.where(polytope_memberships==polytope)[0] # collect the samples that belong to the current polytope
+                polytope_member_count.append(len(idx))
                 
-                if len(idx) == 1:
-                    continue  #threshold the polytopes (don't fit a GMM unless the polytope contain T number of samples)
-
-                print("Number of Polytope members : ", len(idx))
+                if len(idx) < 10: # don't fit a gaussian to singleton polytopes
+                    continue
                 
-                if self.criterion == None:
-                    # Calculate single Gaussian over data in group
-                    # Note: Will this break if we list 2+ covariance types?
-                    gm = GaussianMixture(n_components=1, covariance_type=self.covariance_types, reg_covar=1e-4).fit(X_[idx])
-                    self.polytope_means[label].append(
-                            gm.means_[0]
-                    )
-                    tmp_cov = gm.covariances_[0]
-                    if self.covariance_types == 'spherical':
-                        tmp_cov = np.eye(feature_dim) * tmp_cov
-                    elif self.covariance_types == 'diag':
-                        tmp_cov = np.eye(len(tmp_cov)) * tmp_cov
+                # get the activation pattern of the current polytope
+                current_polytope_activation = np.binary_repr(polytope, width=num_fc_neurons) 
 
-                    self.polytope_cov[label].append(
-                            tmp_cov
-                    )
-                else:
-                    min_val = np.inf
-                    # Get means and covariance directly from observations in this group
-                    tmp_means = np.mean(
-                        X_[idx],
-                        axis=0
-                    )
-                    tmp_cov = np.var(
-                        X_[idx],
-                        axis=0
-                    )
-                    tmp_cov = np.eye(len(tmp_cov)) * tmp_cov
+                # compute the weights
+                weights = []
+                for member in polytope_memberships:
+                    member_activation = np.binary_repr(member, width=num_fc_neurons)
+                    weight = np.sum(np.array(list(current_polytope_activation))==np.array(list(member_activation)))/num_fc_neurons
+                    weights.append(weight)
+                weights = np.array(weights)
 
-                    for cov_type in self.covariance_types:
-                        # Note: Why are we using different reg_covar for aic/bic vs None?
-                        try:
-                            gm = GaussianMixture(n_components=1, covariance_type=cov_type, reg_covar=1e-3).fit(X_[idx])
-                        except:
-                            warnings.warn("Could not fit for cov_type "+cov_type)
-                        else:
-                            if self.criterion == 'aic':
-                                constraint = gm.aic(X_[idx])
-                            elif self.criterion == 'bic':
-                                constraint = gm.bic(X_[idx])
-                            
-                            # If our current min_val > constraint for this cov_type, replace values
-                            if min_val > constraint:
-                                min_val = constraint
-                                tmp_cov = gm.covariances_[0]
-                                
-                                if cov_type == 'spherical':
-                                    tmp_cov = np.eye(feature_dim)*tmp_cov
-                                elif cov_type == 'diag':
-                                    tmp_cov = np.eye(len(tmp_cov)) * tmp_cov
+                X_tmp = X_.copy()
+                polytope_mean_ = np.average(X_tmp, axis=0, weights=weights) # compute the weighted average of the samples 
+                X_tmp -= polytope_mean_ # center the data
 
-                                tmp_means = gm.means_[0]
-                    
-                    # For criterion = None, this fits the first? covariance type in self.covariance_types
-                    # For constraint = aic/bic, this will fot output the most constraining cov_type in self.covariance_types
-                    self.polytope_means[label].append(
-                        tmp_means
-                    )
-                    self.polytope_cov[label].append(
-                        tmp_cov
-                    )
-            plt.hist(num_polytopes, bins=30)
+                sqrt_weights = np.sqrt(weights)
+                sqrt_weights = np.expand_dims(sqrt_weights, axis=-1)
+                X_tmp *= sqrt_weights # scale the centered data with the square root of the weights
+
+                # compute the paramters of the Gaussian underlying the polytope
+                 
+                ## Gaussian Mixture Model
+                # gm = GaussianMixture(n_components=1, covariance_type=self.covariance_types, reg_covar=1e-4).fit(X_tmp)
+                # polytope_mean_ = gm.means_[0]
+                # polytope_cov_ = gm.covariances_[0]
+                
+                # LedoitWolf Estimator
+                covariance_model = LedoitWolf(assume_centered=True)
+                covariance_model.fit(X_tmp)
+                polytope_cov_ = covariance_model.covariance_
+
+                # store the mean and covariances
+                self.polytope_means[label].append(
+                        polytope_mean_
+                )
+                self.polytope_cov[label].append(
+                        polytope_cov_
+                )
+
+            plt.hist(polytope_member_count, bins=30)
             plt.xlabel("Number of Members")
             plt.ylabel("Number of Polytopes")
             plt.show()
