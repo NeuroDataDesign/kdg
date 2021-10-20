@@ -121,6 +121,28 @@ class kdf(KernelDensityGraph):
         proba = (likelihoods.T/(np.sum(likelihoods,axis=1)+1e-100)).T
         return proba
 
+    def predict_pdf(self, X):
+        r"""
+        Calculate estimated pdf using the kernel density forest.
+        Parameters
+        ----------
+        X : ndarray
+            Input data matrix.
+        """
+        X = check_array(X)
+
+        likelihoods = np.zeros(
+            (np.size(X,0), len(self.labels)),
+            dtype=float
+        )
+        
+        for ii,label in enumerate(self.labels):
+            for polytope_idx,_ in enumerate(self.polytope_means[label]):
+                likelihoods[:,ii] += np.nan_to_num(self._compute_pdf(X, label, polytope_idx))
+
+        proba = likelihoods / likelihoods.sum(axis=0)
+        return proba
+
     def predict(self, X):
         r"""
         Perform inference using the kernel density forest.
