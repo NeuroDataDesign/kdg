@@ -7,6 +7,8 @@ from sklearn.utils.validation import check_array, check_is_fitted, check_X_y
 import numpy as np
 from scipy.stats import multivariate_normal
 import warnings
+from sklearn.covariance import LedoitWolf
+import matplotlib.pyplot as plt
 
 class kdcnn(KernelDensityGraph):
 
@@ -35,6 +37,7 @@ class kdcnn(KernelDensityGraph):
         self.fit_kwargs = fit_kwargs
         self.covariance_types = covariance_types
         self.criterion = criterion
+        self.num_fc_neurons = 0
 
     def _get_polytopes(self, X):
         r"""
@@ -72,12 +75,12 @@ class kdcnn(KernelDensityGraph):
             else:
                 binary_preactivation = (preactivation > 0).astype('int')
             
-            # # determine the polytope memberships only based on the penultimate layer
-            # if layer_id == total_layers - 2:
-            #   polytope_memberships.append(binary_preactivation)
+            # determine the polytope memberships only based on the penultimate layer
+            if layer_id == total_layers - 2:
+              polytope_memberships.append(binary_preactivation)
 
-            # determine the polytope memberships only based on all the FC layers
-            polytope_memberships.append(binary_preactivation)
+            # # determine the polytope memberships only based on all the FC layers
+            # polytope_memberships.append(binary_preactivation)
             
             # remove all nodes that were not activated
             last_activations = preactivation * binary_preactivation
@@ -85,7 +88,7 @@ class kdcnn(KernelDensityGraph):
         #Concatenate all activations for given observation
         polytope_obs = np.concatenate(polytope_memberships, axis = 1)
         polytope_memberships = [np.tensordot(polytope_obs, 2 ** np.arange(0, np.shape(polytope_obs)[1]), axes = 1)]
-
+        self.num_fc_neurons = polytope_obs.shape[1]
         return polytope_memberships
 
     def fit(self, X, y):
@@ -105,11 +108,6 @@ class kdcnn(KernelDensityGraph):
         # get the encoder outputs
         self.encoder = Model(self.network.input, self.network.layers[-(self.num_fc_layers + 1)].output)
         X = self.encoder.predict(X)
-
-        # get the number of FC neurons
-        num_fc_neurons = 0
-        for i in range(-1, -(self.num_fc_layers + 1), -1):
-            num_fc_neurons += self.network.layers[i].output_shape[1]
         
         for label in self.labels:
             print("label : ", label)
@@ -134,14 +132,26 @@ class kdcnn(KernelDensityGraph):
                     continue
                 
                 # get the activation pattern of the current polytope
-                current_polytope_activation = np.binary_repr(polytope, width=num_fc_neurons) 
+                current_polytope_activation = np.binary_repr(polytope, width=self.num_fc_neurons)[::-1] 
 
                 # compute the weights
                 weights = []
                 for member in polytope_memberships:
-                    member_activation = np.binary_repr(member, width=num_fc_neurons)
-                    weight = np.sum(np.array(list(current_polytope_activation))==np.array(list(member_activation)))/num_fc_neurons
+                    member_activation = np.binary_repr(member, width=self.num_fc_neurons)[::-1] 
+                    
+                    # # weight based on the total number of matches
+                    # weight = np.sum(np.array(list(current_polytope_activation))==np.array(list(member_activation)))/self.num_fc_neurons
+                
+                    ## weight based on the first mistmatch 
+                    match_status = np.array(list(current_polytope_activation))==np.array(list(member_activation))
+                    if len(np.where(match_status.astype('int')==0)[0]) == 0:
+                        weight = 1.0
+                    else:
+                        first_mismatch_idx = np.where(match_status.astype('int')==0)[0][0]
+                        weight = first_mismatch_idx / self.num_fc_neurons
+                    
                     weights.append(weight)
+
                 weights = np.array(weights)
 
                 X_tmp = X_.copy()
@@ -162,7 +172,7 @@ class kdcnn(KernelDensityGraph):
                 # LedoitWolf Estimator
                 covariance_model = LedoitWolf(assume_centered=True)
                 covariance_model.fit(X_tmp)
-                polytope_cov_ = covariance_model.covariance_
+                polytope_cov_ = covariance_model.covariance_ * len(weights) / sum(weights)
 
                 # store the mean and covariances
                 self.polytope_means[label].append(
