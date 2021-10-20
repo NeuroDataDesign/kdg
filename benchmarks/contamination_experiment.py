@@ -145,7 +145,7 @@ for sample in sample_size:
         h = contamination_experiment(sample,
                                      grid_density=200,
                                      n_estimators=n_estimators,
-                                     uniform_size=samples,  # TODO: class 0 uniform noise size?
+                                     uniform_size=sample,  # TODO: class 0 uniform noise size?
                                      contamination_prop=p)
         hellinger_dist_kdf.append(h)
         
