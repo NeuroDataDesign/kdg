@@ -3,14 +3,20 @@ import numpy as np
 import random
 import matplotlib.pyplot as plt
 import pandas as pd
+from scipy.io import loadmat
 from sklearn.datasets import make_blobs
 from scipy.stats import multivariate_normal
 from kdg.utils import hellinger
 from kdg import kdf
 
 
+def hellinger1d(p, q):
+    """ Hellinger distance for 1D/flattened inputs. """
+    return np.sqrt(np.sum((np.sqrt(p) - np.sqrt(q)) ** 2)) / np.sqrt(2)
+
+
 def generate_distribution(points, grid_density=200, contamination_prop=0.25):
-    r""" Generate two Gaussian distributions with uniform noise from KDE paper."""
+    """ Generate two Gaussian distributions with uniform noise."""
     centers = np.array([[0, -3], [0, 3]])
 
     num_contamination = np.int32(points * contamination_prop)
@@ -35,13 +41,13 @@ def generate_distribution(points, grid_density=200, contamination_prop=0.25):
     rv1 = multivariate_normal(centers[0], cov)
     rv2 = multivariate_normal(centers[1], cov)
     true_pdf = rv1.pdf(pos) + rv2.pdf(pos)
-    true_pdf /= true_pdf.sum()
+    true_pdf /= 2
 
     return X0, Xc, true_pdf
 
 
 def replicate_figure(X0, Xc, grid_density=100, centers=None):
-    r""" Replicate KDE paper figure display. """
+    """ Replicate figure similar to KDE paper."""
     plt.figure(figsize=(8, 8))
     plt.scatter(X0[:, 1], X0[:, 0], facecolors='none', edgecolors='black')
     plt.scatter(Xc[:, 1], Xc[:, 0], marker='x', color='red')
@@ -59,13 +65,13 @@ def replicate_figure(X0, Xc, grid_density=100, centers=None):
     rv1 = multivariate_normal(centers[0], cov)
     rv2 = multivariate_normal(centers[1], cov)
     Z = rv1.pdf(pos) + rv2.pdf(pos)
-    Z /= Z.sum()
+    #Z /= Z.sum()
+    Z /= 2
     plt.contour(yy, xx, Z, levels=[Z.max() / 16, Z.max() / 8, Z.max() / 4, Z.max() / 2, Z.max() * 3 / 4])
 
 
 def contamination_experiment(points, grid_density=200, n_estimators=500, uniform_size=200, contamination_prop=0.25, debug=False):
     """ Run a trial of the contamination experiment """
-    # Generate Data
     X0, Xc, true_pdf = generate_distribution(points,
                                              grid_density=grid_density,
                                              contamination_prop=contamination_prop)
@@ -89,22 +95,21 @@ def contamination_experiment(points, grid_density=200, n_estimators=500, uniform
     model_kdf = kdf(kwargs={'n_estimators':n_estimators})
     model_kdf.fit(X_train, y_train)
     pdf_class1 = model_kdf.predict_pdf(grid_samples)[:, 1]
-    #pdf_class0 = model_kdf.predict_pdf(grid_samples)[:, 0]
+    h = hellinger1d(pdf_class1.reshape(-1, 1).flatten(), true_pdf_class1.flatten())
 
-    h = hellinger(pdf_class1.reshape(-1, 1), true_pdf_class1)
-
+    # Visualization utilities
     if debug:
-        #### Show True Points ####
+        # Show True Points
         replicate_figure(X0, Xc)
         plt.gca().set_title('True Distribution')
 
-        #### Show true pdf ####
+        # Show true pdf ####
         plt.figure()
-        plt.imshow(true_pdf.T)
+        plt.imshow(np.flip(true_pdf.T, axis=0))
         plt.colorbar()
         plt.title('True pdf')
     
-        #### Show predicted pdf ####
+        # Show predicted pdf
         plt.figure()
         plt.imshow(np.flip(pdf_class1.reshape((grid_density, grid_density)).T, axis=0))
         plt.colorbar()
@@ -112,19 +117,18 @@ def contamination_experiment(points, grid_density=200, n_estimators=500, uniform
 
     return h
 
-    
 #### Experiment from RKDE Paper ####
-#points = 220
-#n_uniform = 200
-#h = contamination_experiment(points, grid_density=200, n_estimators=50, uniform_size=n_uniform, contamination_prop=0.09, debug=True)
-#print(h)
-#plt.show()
+points = 1000
+n_uniform = 500
+h = contamination_experiment(points, grid_density=200, n_estimators=500, uniform_size=n_uniform, contamination_prop=0.09, debug=True)
+print('Test hellinger = {}'.format(h))
+plt.show()
 
 #### Run Experiment with Varying Samples ####
 sample_size = np.logspace(
-    np.log10(10),
+    np.log10(100),
     np.log10(10000),
-    num=5,
+    num=10,
     endpoint=True,
     dtype=int
     )
@@ -132,8 +136,8 @@ reps = 10
 contamination_prop = 0.09
 
 df = pd.DataFrame()
-n_estimators=500
-#n_uniform=500
+n_estimators = 500
+n_uniform = 1000
 p = 0.10
 reps_list = []
 sample_list = []
@@ -145,7 +149,7 @@ for sample in sample_size:
         h = contamination_experiment(sample,
                                      grid_density=200,
                                      n_estimators=n_estimators,
-                                     uniform_size=sample,  # TODO: class 0 uniform noise size?
+                                     uniform_size=n_uniform,
                                      contamination_prop=p)
         hellinger_dist_kdf.append(h)
         
@@ -161,7 +165,7 @@ hellinger_kdf_med = []
 hellinger_kdf_25_quantile = []
 hellinger_kdf_75_quantile = []
 
-for sample in sample_size:
+for sample in sample_size:  # assumes Matlab used the same sample sizes
     curr = df['hellinger_dist_kdf'][df['sample']==sample]
     hellinger_kdf_25_quantile.append(
         np.quantile(curr, [.25])[0]
@@ -171,10 +175,22 @@ for sample in sample_size:
     )
     hellinger_kdf_med.append(np.median(curr))
 
+## Load from matlab
+mat = loadmat('../rkde_code/rkde_exp.mat')
+
+hellinger_rkde_med = np.squeeze(mat['hellinger_rkde_med'])
+hellinger_rkde_25_quantile = np.squeeze(mat['hellinger_rkde_25_quantile'])
+hellinger_rkde_75_quantile = np.squeeze(mat['hellinger_rkde_75_quantile'])
+df.to_csv('sim_res/contam_exp_1000noise.csv')
+
+
+## Plotting
 sns.set_context('talk')
 fig, ax = plt.subplots(1,1, figsize=(8,8))
 ax.plot(sample_size, hellinger_kdf_med, c="r", label='KDF')
 ax.fill_between(sample_size, hellinger_kdf_25_quantile, hellinger_kdf_75_quantile, facecolor='r', alpha=.3)
+ax.plot(sample_size, hellinger_rkde_med, c="k", label='RKDE')
+ax.fill_between(sample_size, hellinger_rkde_25_quantile, hellinger_rkde_75_quantile, facecolor='k', alpha=.3)
 
 right_side = ax.spines["right"]
 right_side.set_visible(False)
@@ -185,6 +201,6 @@ ax.set_xscale('log')
 ax.set_xlabel('Sample size')
 ax.set_ylabel('Hellinger Distance')
 ax.legend(frameon=False)
-plt.savefig('plots/contamination_test.pdf')
+plt.savefig('plots/contamination_test_1000.pdf')
 
 plt.show()
