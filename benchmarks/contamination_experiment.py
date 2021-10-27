@@ -94,7 +94,7 @@ def contamination_experiment(points, grid_density=200, n_estimators=500, uniform
 
     model_kdf = kdf(kwargs={'n_estimators':n_estimators})
     model_kdf.fit(X_train, y_train)
-    pdf_class1 = model_kdf.predict_pdf(grid_samples, 1)[:, 1]
+    pdf_class1 = model_kdf.predict_pdf(grid_samples)[:, 1]
     h = hellinger1d(pdf_class1.reshape(-1, 1).flatten(), true_pdf_class1.flatten())
 
     # Visualization utilities
