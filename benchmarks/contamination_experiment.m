@@ -6,7 +6,7 @@ grid_density = 200; % number of points in each direction on grid
 p = 0.09;           % contamination proportion
 
 % Run a single trial of the contamination experiment
-[h, wsd] = contamination_trial(n, grid_density, p, d, true)
+h = contamination_trial(n, grid_density, p, d, true)
 
 
 %% Run Experiment with varying sample size
