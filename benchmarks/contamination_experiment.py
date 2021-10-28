@@ -174,7 +174,7 @@ for sample in sample_size:  # assumes Matlab used the same sample sizes
     hellinger_kdf_med.append(np.median(curr))
 
 ## Load from matlab
-mat = loadmat('../rkde_code/rkde_exp.mat')
+mat = loadmat('sim_res/rkde_exp.mat')
 
 hellinger_rkde_med = np.squeeze(mat['hellinger_rkde_med'])
 hellinger_rkde_25_quantile = np.squeeze(mat['hellinger_rkde_25_quantile'])
