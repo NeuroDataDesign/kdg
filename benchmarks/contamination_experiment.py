@@ -133,8 +133,6 @@ sample_size = np.logspace(
     dtype=int
     )
 reps = 10
-contamination_prop = 0.09
-
 df = pd.DataFrame()
 n_estimators = 500
 n_uniform = 1000
