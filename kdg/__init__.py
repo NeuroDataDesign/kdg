@@ -1,5 +1,6 @@
 from .kdf import *
 from .kdn import *
+from .weighted_kdn import *
 from .random_tree import *
 from .utils import *
 
