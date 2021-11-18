@@ -10,13 +10,13 @@ from sklearn.ensemble import RandomForestClassifier as rf
 
 def label_noise_trial(n_samples, p=0.10, n_estimators=500):
     """Single label noise trial with proportion p of flipped labels."""
-    X, y = generate_gaussian_parity(n_samples)
+    X, y = generate_gaussian_parity(n_samples, cluster_std=0.5)
     X_test, y_test = generate_gaussian_parity(1000, cluster_std=0.5)
 
     # Generate noise and flip labels
     n_noise = np.int32(np.round(len(X) * p))
     noise_indices = random.sample(range(len(X)), n_noise)
-    y[noise_indices] = np.abs(1 - y[noise_indices])
+    y[noise_indices] = 1 - y[noise_indices]
 
     model_kdf = kdf(kwargs={"n_estimators": n_estimators})
     model_kdf.fit(X, y)
@@ -32,7 +32,7 @@ def label_noise_trial(n_samples, p=0.10, n_estimators=500):
 df = pd.DataFrame()
 reps = 10
 n_estimators = 500
-n_samples = 1000
+n_samples = 5000
 
 err_kdf = []
 err_rf = []
@@ -95,7 +95,6 @@ right_side.set_visible(False)
 top_side = ax.spines["top"]
 top_side.set_visible(False)
 
-# ax.set_xscale('log')
 ax.set_xlabel("Label Noise Proportion")
 ax.set_ylabel("Error")
 plt.title("Gaussian Parity Label Noise")
