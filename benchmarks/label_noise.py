@@ -36,7 +36,6 @@ n_samples = 5000
 
 err_kdf = []
 err_rf = []
-# sample_list = []
 proportions = [0.0, 0.1, 0.2, 0.3, 0.4]
 proportion_list = []
 reps_list = []
