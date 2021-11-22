@@ -4,7 +4,6 @@ import random
 import pandas as pd
 import seaborn as sns
 from kdg.utils import generate_spirals
-from kdg.utils import generate_gaussian_parity
 from kdg import kdf
 from sklearn.ensemble import RandomForestClassifier as rf
 
